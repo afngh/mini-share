@@ -10,7 +10,9 @@ public class Server {
             Registry registry = LocateRegistry.createRegistry(1099);
             
             FileTransferServiceImpl service = new FileTransferServiceImpl();
-            registry.rebind("FileTransferService", service);
+            
+            // Changed from "FileTransferService" to "FileService" to match client Naming.lookup
+            registry.rebind("FileService", service);
             
             System.out.println("========================================");
             System.out.println("🚀 Java RMI Server Architecture is Live!");
