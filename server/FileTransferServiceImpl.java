@@ -4,15 +4,16 @@ import streaming.FileTransferService;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 
 public class FileTransferServiceImpl extends UnicastRemoteObject implements FileTransferService {
     
-    // Memory state storage for rooms and files
-    private final ConcurrentHashMap<String, List<String>> rooms = new ConcurrentHashMap<>();
+    // Tracks active rooms
+    private final Set<String> activeRooms = new HashSet<>();
+    // Storage for the file data per room: RoomCode -> File Bytes
     private final ConcurrentHashMap<String, byte[]> roomFiles = new ConcurrentHashMap<>();
+    // Storage for the file name per room: RoomCode -> File Name
     private final ConcurrentHashMap<String, String> roomFileNames = new ConcurrentHashMap<>();
 
     public FileTransferServiceImpl() throws RemoteException {
@@ -20,43 +21,36 @@ public class FileTransferServiceImpl extends UnicastRemoteObject implements File
     }
 
     @Override
-    public synchronized String createRoom() throws RemoteException {
-        String roomCode = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        rooms.put(roomCode, new ArrayList<>());
-        System.out.println("RMI Server: Room [" + roomCode + "] successfully created.");
-        return roomCode;
+    public synchronized void createRoom(String roomCode) throws RemoteException {
+        activeRooms.add(roomCode);
+        System.out.println("RMI Server: Room [" + roomCode + "] successfully created by client.");
     }
 
     @Override
-    public synchronized boolean joinRoom(String roomCode, String username) throws RemoteException {
-        if (rooms.containsKey(roomCode)) {
-            rooms.get(roomCode).add(username);
-            System.out.println("RMI Server: User [" + username + "] joined room: " + roomCode);
+    public synchronized boolean joinRoom(String roomCode) throws RemoteException {
+        if (activeRooms.contains(roomCode)) {
+            System.out.println("RMI Server: Client joined room: " + roomCode);
             return true;
         }
-        System.out.println("RMI Server: Join attempt failed. Room " + roomCode + " not found.");
+        System.out.println("RMI Server: Join failed. Room " + roomCode + " does not exist.");
         return false;
     }
 
     @Override
-    public void sendFile(String roomCode, String fileName, byte[] fileData) throws RemoteException {
-        if (!rooms.containsKey(roomCode)) throw new RemoteException("Target room does not exist.");
+    public void uploadFile(String roomCode, byte[] fileData, String fileName) throws RemoteException {
+        if (!activeRooms.contains(roomCode)) throw new RemoteException("Target room does not exist.");
         
         roomFiles.put(roomCode, fileData);
         roomFileNames.put(roomCode, fileName);
-        System.out.println("RMI Server: Stored file [" + fileName + "] inside room: " + roomCode);
+        System.out.println("RMI Server: Stored uploaded file [" + fileName + "] inside room: " + roomCode);
     }
 
     @Override
-    public byte[] receiveFile(String roomCode) throws RemoteException {
+    public byte[] downloadFile(String roomCode) throws RemoteException {
         if (!roomFiles.containsKey(roomCode)) {
             throw new RemoteException("No file available in room: " + roomCode);
         }
+        System.out.println("RMI Server: Transmitting file [" + roomFileNames.get(roomCode) + "] out of room: " + roomCode);
         return roomFiles.get(roomCode);
-    }
-
-    @Override
-    public String getLatestFileName(String roomCode) throws RemoteException {
-        return roomFileNames.getOrDefault(roomCode, "unknown_file");
     }
 }
