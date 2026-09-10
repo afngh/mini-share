@@ -38,4 +38,5 @@ public class FileStreamer {
         byte[] data = service.receiveFile(roomCode);
         byteArrayToFile(data, destinationPath);
     }
+    // Methods for converting File to byte[] array and byte[] array to File 
 }
